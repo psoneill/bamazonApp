@@ -75,7 +75,7 @@ function displayTable(res) {
 
 function displayProductsByDepartment() {
     //runs mysql query to select all products and joins departments table
-    connection.query('SELECT IFNULL(dept.departmentID,"missing") AS departmentID, departmentName, COUNT(itemID) AS itemCount, IFNULL(dept.departmentOverhead,0.00) AS departmentOverhead, IFNULL(SUM(itemSales),0.00) AS departmentSales, IFNULL(SUM(itemSales) - dept.departmentOverhead,0.00) AS totalProfit FROM bamazon.products RIGHT JOIN departments dept on dept.departmentName = itemDepartment GROUP BY itemDepartment', function (err, res) {
+    connection.query('SELECT IFNULL(dept.departmentID,"missing") AS departmentID, departmentName, COUNT(itemID) AS itemCount, IFNULL(dept.departmentOverhead,0.00) AS departmentOverhead, IFNULL(SUM(itemSales),0.00) AS departmentSales, IFNULL(SUM(itemSales) - dept.departmentOverhead,0.00) AS totalProfit FROM bamazon.products RIGHT JOIN departments dept on dept.departmentName = itemDepartment GROUP BY departmentName', function (err, res) {
         if (err) throw err;
         //displays response table
         displayTable(res);
