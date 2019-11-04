@@ -34,23 +34,29 @@ function managerSelect() {
             //choices for product list
             choices: ["View Products for Sale", "View Low Inventory", "Add to Inventory", "Add New Product", "Quit"],
             //message for user
-            message: "Choose item to buy"
+            message: "Choose function to perform"
         }
     ]).then(function (userSelect) {
+        //switch function to route the right function
         switch (userSelect.userCommand) {
             case "View Products for Sale":
+                //displays all products currently in the product table
                 displayAllProducts();
                 break;
             case "View Low Inventory":
+                //displays all items with low inventory
                 displayLowInventory();
                 break;
             case "Add to Inventory":
+                //adds inventory to items
                 addInventoryChoice();
                 break;
             case "Add New Product":
-
+                //allows user to add new items
+                addNewItem();
                 break;
             case "Quit":
+                //quit out of program
                 connection.end();
                 break;
         }
@@ -58,32 +64,42 @@ function managerSelect() {
 }
 
 function displayTable(res) {
+    //create new table for display in CLI
     var table = new Table({
         head: ["Item ID", "Name", "Department", "Price", "Quantity"]
     })
+    //loop through results of each query and display table
     for (let index = 0; index < res.length; index++) {
         table.push([res[index].itemID, res[index].itemName, res[index].itemDepartment, "$" + res[index].itemPrice.toFixed(2), res[index].itemStockQuantity]);
     }
+    //console log table with divider
     console.log(table.toString());
+    console.log("---------------------------------------------------------------------");
+    //recursively call initial select menu
     managerSelect();
 }
 
 function displayAllProducts() {
+    //mysql query to select all products
     connection.query("SELECT * FROM products", function (err, res) {
         if (err) throw err;
+        //display table results
         displayTable(res);
     });
 }
 
 function displayLowInventory() {
+    //mysql query to select all products with low inventory <5 units
     connection.query("SELECT * FROM products WHERE itemStockQuantity < 5", function (err, res) {
         if (err) throw err;
+        //display table results
         displayTable(res);
     });
 }
 
 //addInventory function allows user to select the item they want to buy
 function addInventoryChoice() {
+    //mysql query to select all products to show in inquirer list
     connection.query("SELECT * FROM products", function (err, res) {
         inquirer.prompt([
             {
@@ -140,10 +156,71 @@ function updateDatabaseQuantity(itemID, selectedItem, newStockQuantity) {
     //calls sql query to update table products with new stock quantity
     connection.query("UPDATE products SET ? WHERE ?", [{ itemStockQuantity: newStockQuantity }, { itemID: itemID }], function (err, res) {
         if (err) throw err;
-
-        connection.query("SELECT * FROM products WHERE ?", [{itemID:itemID}],function (err, res) {
+        //mysql query to select product with itemID
+        connection.query("SELECT * FROM products WHERE ?", [{ itemID: itemID }], function (err, res) {
             if (err) throw err;
+            //display table with updated itemID
             displayTable(res);
         });
     });
+}
+
+//function to allow user to add a new item
+function addNewItem() {
+    //prompts user for name, department, price, and quantity for new item
+    inquirer.prompt([
+        {
+            type: "input",
+            name: "name",
+            message: "Enter Name of new item:"
+        },
+        {
+            type: "input",
+            name: "department",
+            message: "Enter Deparment of new item:"
+        },
+        {
+            type: "input",
+            name: "price",
+            message: "Enter Price of new item:"
+        },
+        {
+            type: "input",
+            name: "quantity",
+            message: "Enter Stock Quantity of new item:"
+        }
+    ]).then(function (newItem) {
+        //checks to make sure both price and quantity are numbers
+        if (isNaN(parseFloat(newItem.price)) || isNaN(parseInt(newItem.quantity))) {
+            //reroutes user back to input if numbers are not in correct format
+            console.log("Your Price or Quantity inputs were not in the correct format.  Please try again.");
+            addNewItem();
+        } else {
+            //call function to create new item
+            createItem(newItem.name, newItem.department, newItem.price, newItem.quantity);
+        }
+    });
+}
+
+//function for creating new products item
+function createItem(newItem, newDepartment, newPrice, newQuantity) {
+    //mysql query to insert new item into products table
+    connection.query("INSERT INTO products SET ?",
+        {
+            itemName: newItem,
+            itemDepartment: newDepartment,
+            itemPrice: newPrice,
+            itemStockQuantity: newQuantity
+        }, function (err, res) {
+            if (err) throw err;
+            //console logs to user that the new item has been successfully added
+            console.log(newItem + " has been inserted into inventory");
+            //mysql query to select new product ID
+            connection.query("SELECT * FROM products WHERE ?", [{ itemID: res.insertId }], function (err, res) {
+                if (err) throw err;
+                //display table with new product listing
+                displayTable(res);
+            });
+        }
+    );
 }

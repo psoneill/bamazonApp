@@ -13,6 +13,7 @@ var connection = mysql.createConnection({
     password: keys.mySql.password,
     database: "bamazon"
 });
+var currentInventory = [];
 
 //connects to database on load
 connection.connect(function (err) {
@@ -26,6 +27,7 @@ connection.connect(function (err) {
 function bamazonUpdate() {
     connection.query("SELECT * FROM products", function (err, res) {
         if (err) throw err;
+        currentInventory = res;
         //calls function where user desiredselects item
         chooseItem(res);
     });
@@ -82,20 +84,23 @@ function chooseQuantity(itemID, stockQuantity, itemPrice) {
             //recalls chooseQuantity function to allow user to select new quantity
             chooseQuantity(itemID, stockQuantity, itemPrice);
         } else {
+            var userTotal = parseFloat(itemPrice) * parseFloat(userQuantity);
             //lets user know that they have successfully purchased item
-            console.log("Congratulations you have bought " + userQuantity + " units for a total cost of $" + parseFloat(itemPrice) * parseFloat(userQuantity));
+            console.log("Congratulations you have bought " + userQuantity + " units for a total cost of $" + userTotal);
             //calculates new stock quantity
             var remainingStockQuantity = stockQuantity - userQuantity;
             //calls function to update database with new stock quantity
-            updateDatabaseQuantity(itemID, remainingStockQuantity);
+            updateDatabaseQuantity(itemID, remainingStockQuantity, userTotal);
         }
     })
 }
 
 //updateDatabaseQuantity function to update mysql database for selected item
-function updateDatabaseQuantity(itemID, remainingStockQuantity) {
-    //calls sql query to update table products with new stock quantity
-    connection.query("UPDATE products SET ? WHERE ?", [{ itemStockQuantity: remainingStockQuantity }, { itemID: itemID }], function (err, res) {
+function updateDatabaseQuantity(itemID, remainingStockQuantity, userTotal) {
+    //calculate total sales using userTotal and the database current item total
+    var totalSales = userTotal + currentInventory[itemID - 1].itemSales;
+    //calls sql query to update table products with new stock quantity and updates total sales
+    connection.query("UPDATE products SET ? WHERE ?", [{ itemStockQuantity: remainingStockQuantity,  itemSales: totalSales}, { itemID: itemID }], function (err, res) {
         if (err) throw err;
         //prompts user to either return to base menu or end session
         inquirer.prompt([
